@@ -4,7 +4,7 @@ import makeWASocket, {
 } from "@whiskeysockets/baileys";
 
 import P from "pino";
-import qrcode from "qrcode-terminal";
+import QRCode from "qrcode";
 
 import { handleMessage } from "./messageHandler.js";
 
@@ -35,28 +35,20 @@ export async function createWhatsApp() {
 // ========================================
 
 function setupConnection(sock) {
-  sock.ev.on("connection.update", (update) => {
+  sock.ev.on("connection.update", async (update) => {
     const { connection, lastDisconnect, qr } = update;
 
     if (qr) {
-      console.clear();
+      console.log("\n========== QR CODE ==========\n");
 
-      console.log("\n");
-      console.log("========================================");
-      console.log("       ESCANEIE O QR CODE");
-      console.log("       WHATSAPP - W2V OFICINA");
-      console.log("========================================");
-      console.log("\n");
-
-      qrcode.generate(qr, {
+      const qrString = await QRCode.toString(qr, {
+        type: "terminal",
         small: true,
       });
 
-      console.log("\n");
-      console.log("========================================");
-      console.log(" Abra o WhatsApp > Dispositivos conectados");
-      console.log(" e escaneie o código acima.");
-      console.log("========================================");
+      console.log(qrString);
+
+      console.log("\n=============================\n");
     }
 
     // CONECTADO
