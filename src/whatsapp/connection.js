@@ -4,97 +4,244 @@ import makeWASocket, {
 } from "@whiskeysockets/baileys";
 
 import P from "pino";
-import QRCode from "qrcode";
 
 import { handleMessage } from "./messageHandler.js";
 
+// QR atual
+let currentQR = null;
+
+// Status da conexão
+let isConnected = false;
+
+
+// ========================================
+// CRIAR CONEXÃO
+// ========================================
+
 export async function createWhatsApp() {
-  const { state, saveCreds } = await useMultiFileAuthState("./auth_info");
+
+  console.log("🔄 Iniciando WhatsApp...");
+
+  const { state, saveCreds } =
+    await useMultiFileAuthState("./auth_info");
+
+  console.log("🔐 Auth carregado.");
+
 
   const sock = makeWASocket({
+
     auth: state,
 
     logger: P({
       level: "silent",
     }),
 
+    // NÃO imprimir QR no terminal
     printQRInTerminal: false,
+
   });
+
 
   setupConnection(sock);
 
   setupMessages(sock);
 
-  sock.ev.on("creds.update", saveCreds);
+
+  sock.ev.on(
+    "creds.update",
+    saveCreds
+  );
+
 
   return sock;
 }
+
 
 // ========================================
 // CONEXÃO
 // ========================================
 
 function setupConnection(sock) {
-  sock.ev.on("connection.update", async (update) => {
-    const { connection, lastDisconnect, qr } = update;
 
-    if (qr) {
-      console.log("\n========== QR CODE ==========\n");
+  sock.ev.on(
+    "connection.update",
+    (update) => {
 
-      const qrString = await QRCode.toString(qr, {
-        type: "terminal",
-        small: true,
-      });
+      const {
+        connection,
+        lastDisconnect,
+        qr,
+      } = update;
 
-      console.log(qrString);
 
-      console.log("\n=============================\n");
-    }
+      // ====================================
+      // QR CODE
+      // ====================================
 
-    // CONECTADO
-    if (connection === "open") {
-      console.log("\nWhatsApp conectado com sucesso! ✅\n");
-    }
+      if (qr) {
 
-    // DESCONECTADO
-    if (connection === "close") {
-      const statusCode = lastDisconnect?.error?.output?.statusCode;
+        currentQR = qr;
 
-      if (statusCode !== DisconnectReason.loggedOut) {
-        console.log("Conexão perdida. Reconectando...");
+        isConnected = false;
 
-        createWhatsApp();
-      } else {
-        console.log("WhatsApp desconectado. ❌");
+        console.log(
+          "📱 Novo QR Code disponível."
+        );
+
       }
+
+
+      // ====================================
+      // CONECTADO
+      // ====================================
+
+      if (connection === "open") {
+
+        currentQR = null;
+
+        isConnected = true;
+
+        console.log(
+          "✅ WhatsApp conectado!"
+        );
+
+      }
+
+
+      // ====================================
+      // DESCONECTADO
+      // ====================================
+
+      if (connection === "close") {
+
+        isConnected = false;
+
+
+        const statusCode =
+          lastDisconnect
+            ?.error
+            ?.output
+            ?.statusCode;
+
+
+        // Usuário deslogou
+        if (
+          statusCode ===
+          DisconnectReason.loggedOut
+        ) {
+
+          currentQR = null;
+
+          console.log(
+            "❌ WhatsApp deslogado."
+          );
+
+          return;
+        }
+
+
+        console.log(
+          "🔄 WhatsApp desconectado. Reconectando..."
+        );
+
+
+        setTimeout(() => {
+
+          createWhatsApp();
+
+        }, 3000);
+
+      }
+
     }
-  });
+  );
+
 }
+
 
 // ========================================
 // MENSAGENS
 // ========================================
 
 function setupMessages(sock) {
-  sock.ev.on("messages.upsert", async ({ messages }) => {
-    const message = messages[0];
 
-    if (!message?.message) {
-      return;
+  sock.ev.on(
+    "messages.upsert",
+    async ({ messages }) => {
+
+      const message = messages[0];
+
+
+      if (!message?.message) {
+        return;
+      }
+
+
+      // Ignora mensagens próprias
+      if (message.key.fromMe) {
+        return;
+      }
+
+
+      const jid =
+        message.key.remoteJid;
+
+
+      // Ignora grupos
+      if (
+        jid?.endsWith("@g.us")
+      ) {
+
+        return;
+
+      }
+
+
+      try {
+
+        await handleMessage(
+          sock,
+          message
+        );
+
+      } catch (error) {
+
+        console.error(
+          "Erro ao processar mensagem:",
+          error
+        );
+
+      }
+
     }
+  );
 
-    // Ignora mensagens enviadas pelo próprio bot
-    if (message.key.fromMe) {
-      return;
-    }
+}
 
-    const jid = message.key.remoteJid;
 
-    // Ignora grupos
-    if (jid?.endsWith("@g.us")) {
-      return;
-    }
+// ========================================
+// GET QR
+// ========================================
 
-    await handleMessage(sock, message);
-  });
+export function getCurrentQR() {
+
+  return currentQR;
+
+}
+
+
+// ========================================
+// STATUS
+// ========================================
+
+export function getWhatsAppStatus() {
+
+  return {
+
+    connected: isConnected,
+
+    qr: currentQR,
+
+  };
+
 }
