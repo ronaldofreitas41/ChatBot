@@ -7,53 +7,84 @@ import P from "pino";
 
 import { handleMessage } from "./messageHandler.js";
 
-// QR atual
 let currentQR = null;
-
-// Status da conexão
-let isConnected = false;
+let connected = false;
+let isStarting = false;
 
 
 // ========================================
-// CRIAR CONEXÃO
+// STATUS
+// ========================================
+
+export function getWhatsAppStatus() {
+  return {
+    connected,
+    qr: currentQR,
+  };
+}
+
+
+// ========================================
+// CRIAR WHATSAPP
 // ========================================
 
 export async function createWhatsApp() {
 
-  console.log("🔄 Iniciando WhatsApp...");
+  if (isStarting) {
+    console.log("⚠️ WhatsApp já está iniciando...");
+    return;
+  }
 
-  const { state, saveCreds } =
-    await useMultiFileAuthState("./auth_info");
+  isStarting = true;
 
-  console.log("🔐 Auth carregado.");
+  try {
 
+    console.log("📱 Iniciando conexão com WhatsApp...");
 
-  const sock = makeWASocket({
-
-    auth: state,
-
-    logger: P({
-      level: "silent",
-    }),
-
-    // NÃO imprimir QR no terminal
-    printQRInTerminal: false,
-
-  });
+    const { state, saveCreds } =
+      await useMultiFileAuthState("./auth_info");
 
 
-  setupConnection(sock);
+    const sock = makeWASocket({
 
-  setupMessages(sock);
+      auth: state,
+
+      logger: P({
+        level: "silent",
+      }),
+
+      printQRInTerminal: false,
+
+    });
 
 
-  sock.ev.on(
-    "creds.update",
-    saveCreds
-  );
+    setupConnection(sock);
+
+    setupMessages(sock);
+
+    sock.ev.on(
+      "creds.update",
+      saveCreds
+    );
 
 
-  return sock;
+    console.log("✅ Socket do WhatsApp criado.");
+
+    return sock;
+
+  } catch (error) {
+
+    console.error(
+      "❌ Erro ao criar conexão WhatsApp:"
+    );
+
+    console.error(error);
+
+  } finally {
+
+    isStarting = false;
+
+  }
 }
 
 
@@ -65,7 +96,7 @@ function setupConnection(sock) {
 
   sock.ev.on(
     "connection.update",
-    (update) => {
+    async (update) => {
 
       const {
         connection,
@@ -74,57 +105,84 @@ function setupConnection(sock) {
       } = update;
 
 
-      // ====================================
+      // ==================================
       // QR CODE
-      // ====================================
+      // ==================================
 
       if (qr) {
 
+        console.log(
+          "📲 QR CODE RECEBIDO!"
+        );
+
         currentQR = qr;
 
-        isConnected = false;
-
-        console.log(
-          "📱 Novo QR Code disponível."
-        );
+        connected = false;
 
       }
 
 
-      // ====================================
+      // ==================================
       // CONECTADO
-      // ====================================
+      // ==================================
 
       if (connection === "open") {
 
+        connected = true;
+
         currentQR = null;
 
-        isConnected = true;
-
         console.log(
-          "✅ WhatsApp conectado!"
+          "✅ WhatsApp conectado com sucesso!"
         );
 
       }
 
 
-      // ====================================
+      // ==================================
       // DESCONECTADO
-      // ====================================
+      // ==================================
 
       if (connection === "close") {
 
-        isConnected = false;
+        connected = false;
+
+
+        const error =
+          lastDisconnect?.error;
 
 
         const statusCode =
-          lastDisconnect
-            ?.error
-            ?.output
-            ?.statusCode;
+          error?.output?.statusCode;
 
 
-        // Usuário deslogou
+        console.log(
+          "\n================================"
+        );
+
+        console.log(
+          "❌ WHATSAPP DESCONECTADO"
+        );
+
+        console.log(
+          "Status:",
+          statusCode
+        );
+
+        console.log(
+          "Erro:",
+          error
+        );
+
+        console.log(
+          "================================\n"
+        );
+
+
+        // ==================================
+        // LOGOUT
+        // ==================================
+
         if (
           statusCode ===
           DisconnectReason.loggedOut
@@ -133,16 +191,27 @@ function setupConnection(sock) {
           currentQR = null;
 
           console.log(
-            "❌ WhatsApp deslogado."
+            "🚫 Sessão do WhatsApp foi encerrada."
+          );
+
+          console.log(
+            "Apague a pasta auth_info e execute novamente."
           );
 
           return;
         }
 
 
+        // ==================================
+        // RECONEXÃO
+        // ==================================
+
         console.log(
-          "🔄 WhatsApp desconectado. Reconectando..."
+          "🔄 Tentando reconectar em 3 segundos..."
         );
+
+
+        currentQR = null;
 
 
         setTimeout(() => {
@@ -177,7 +246,6 @@ function setupMessages(sock) {
       }
 
 
-      // Ignora mensagens próprias
       if (message.key.fromMe) {
         return;
       }
@@ -187,13 +255,8 @@ function setupMessages(sock) {
         message.key.remoteJid;
 
 
-      // Ignora grupos
-      if (
-        jid?.endsWith("@g.us")
-      ) {
-
+      if (jid?.endsWith("@g.us")) {
         return;
-
       }
 
 
@@ -207,7 +270,7 @@ function setupMessages(sock) {
       } catch (error) {
 
         console.error(
-          "Erro ao processar mensagem:",
+          "❌ Erro ao processar mensagem:",
           error
         );
 
@@ -215,33 +278,5 @@ function setupMessages(sock) {
 
     }
   );
-
-}
-
-
-// ========================================
-// GET QR
-// ========================================
-
-export function getCurrentQR() {
-
-  return currentQR;
-
-}
-
-
-// ========================================
-// STATUS
-// ========================================
-
-export function getWhatsAppStatus() {
-
-  return {
-
-    connected: isConnected,
-
-    qr: currentQR,
-
-  };
 
 }

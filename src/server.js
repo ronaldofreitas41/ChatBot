@@ -6,13 +6,7 @@ import {
   getWhatsAppStatus,
 } from "./whatsapp/connection.js";
 
-
 const app = express();
-
-
-// ========================================
-// MIDDLEWARE
-// ========================================
 
 app.use(
   cors({
@@ -24,14 +18,12 @@ app.use(express.json());
 
 
 // ========================================
-// STATUS
+// STATUS DO WHATSAPP
 // ========================================
 
 app.get("/api/whatsapp/status", (req, res) => {
 
-  const status =
-    getWhatsAppStatus();
-
+  const status = getWhatsAppStatus();
 
   res.json({
     connected: status.connected,
@@ -59,19 +51,25 @@ app.get("/", (req, res) => {
 // SERVIDOR
 // ========================================
 
-const PORT =
-  process.env.PORT || 3000;
+const PORT = process.env.PORT || 3000;
 
+app.listen(PORT, async () => {
 
-app.listen(
-  PORT,
-  () => {
+  console.log(
+    `🚀 Servidor rodando na porta ${PORT}`
+  );
 
-    console.log(
-      `🚀 Servidor rodando na porta ${PORT}`
+  try {
+
+    await createWhatsApp();
+
+  } catch (error) {
+
+    console.error(
+      "❌ Erro ao iniciar WhatsApp:",
+      error
     );
 
-    createWhatsApp();
-
   }
-);
+
+});

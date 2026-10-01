@@ -17,6 +17,11 @@ import {
   sendCompanyNotification,
 } from "../services/companyNotification.js";
 
+import {
+  isChatPaused,
+  pauseChat,
+} from "./chatPauses.js";
+
 
 // ==========================================
 // CLIENTES
@@ -35,6 +40,10 @@ export async function processMessage(
   jid,
   text
 ) {
+
+  if (await isChatPaused(jid)) {
+    return;
+  }
 
   let client = clients.get(jid);
 
@@ -229,6 +238,19 @@ async function handleMenu(
       break;
 
 
+    case "5":
+
+      await pauseChat(jid);
+
+      await sendMessage(
+        sock,
+        jid,
+        "As respostas automáticas foram pausadas por 24 horas nesta conversa. Nossa equipe poderá continuar o atendimento."
+      );
+
+      break;
+
+
     default:
 
       await sendMessage(
@@ -241,7 +263,8 @@ Por favor, escolha uma opção:
 1 - OFICINA
 2 - ESTÉTICA
 3 - REMAP E PERFORMANCE
-4 - W2V RACING`
+4 - W2V RACING
+5 - PAUSAR BOT POR 24 HORAS`
       );
 
       break;

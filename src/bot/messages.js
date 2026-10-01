@@ -27,7 +27,8 @@ Como podemos ajudar?
 2 - ESTÉTICA
 3 - REMAP E PERFORMANCE
 4 - W2V RACING
-    (PREPARAÇÃO PARA PISTA)
+  (PREPARAÇÃO PARA PISTA)
+5 - PAUSAR BOT POR 24 HORAS
 
 Digite o número da opção desejada.`;
 }
