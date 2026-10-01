@@ -3,6 +3,7 @@ import makeWASocket, {
   DisconnectReason,
 } from "@whiskeysockets/baileys";
 
+import { rm } from "node:fs/promises";
 import P from "pino";
 
 import { handleMessage } from "./messageHandler.js";
@@ -194,8 +195,10 @@ function setupConnection(sock) {
             "🚫 Sessão do WhatsApp foi encerrada."
           );
 
+          await rm("./auth_info", { recursive: true, force: true });
+
           console.log(
-            "Apague a pasta auth_info e execute novamente."
+            "🧹 Dados de autenticação removidos."
           );
 
           return;
