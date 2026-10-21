@@ -45,10 +45,13 @@ function savePauses() {
   return writeQueue;
 }
 
-export async function pauseChat(jid) {
+export const PAUSE_24H = 24 * 60 * 60 * 1000;
+export const PAUSE_1H = 60 * 60 * 1000;
+
+export async function pauseChat(jid, duration = PAUSE_24H) {
   await loadPauses();
 
-  const expiresAt = Date.now() + 24 * 60 * 60 * 1000;
+  const expiresAt = Date.now() + duration;
   pauses.set(jid, expiresAt);
   await savePauses();
 

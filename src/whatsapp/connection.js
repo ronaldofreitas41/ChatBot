@@ -1,12 +1,44 @@
 import makeWASocket, {
   useMultiFileAuthState,
   DisconnectReason,
+  generateMessageID,
 } from "@whiskeysockets/baileys";
 
 import { rm } from "node:fs/promises";
 import P from "pino";
 
 import { handleMessage } from "./messageHandler.js";
+import { pauseChat, PAUSE_1H } from "../bot/chatPauses.js";
+
+// IDs das mensagens enviadas pelo próprio bot, para não
+// confundi-las com respostas manuais do atendente.
+const botMessageIds = new Set();
+
+function trackBotMessages(sock) {
+
+  const originalSendMessage =
+    sock.sendMessage.bind(sock);
+
+  sock.sendMessage = (jid, content, options = {}) => {
+
+    const messageId =
+      options.messageId ?? generateMessageID();
+
+    botMessageIds.add(messageId);
+
+    // Evita crescimento indefinido do conjunto.
+    setTimeout(
+      () => botMessageIds.delete(messageId),
+      60 * 1000
+    );
+
+    return originalSendMessage(
+      jid,
+      content,
+      { ...options, messageId }
+    );
+  };
+}
 
 let currentQR = null;
 let connected = false;
@@ -56,8 +88,13 @@ export async function createWhatsApp() {
 
       printQRInTerminal: false,
 
+      // Mantém o celular recebendo as notificações normalmente.
+      markOnlineOnConnect: false,
+
     });
 
+
+    trackBotMessages(sock);
 
     setupConnection(sock);
 
@@ -249,16 +286,34 @@ function setupMessages(sock) {
       }
 
 
-      if (message.key.fromMe) {
-        return;
-      }
-
-
       const jid =
         message.key.remoteJid;
 
 
-      if (jid?.endsWith("@g.us")) {
+      if (
+        !jid ||
+        jid.endsWith("@g.us") ||
+        jid.endsWith("@broadcast")
+      ) {
+        return;
+      }
+
+
+      if (message.key.fromMe) {
+
+        // Mensagem enviada manualmente pelo atendente:
+        // pausa o bot nesta conversa por 1 hora.
+
+        if (botMessageIds.delete(message.key.id)) {
+          return;
+        }
+
+        await pauseChat(jid, PAUSE_1H);
+
+        console.log(
+          `⏸️ Bot pausado por 1 hora em ${jid} (resposta manual).`
+        );
+
         return;
       }
 
