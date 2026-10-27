@@ -513,9 +513,12 @@ async function handleConfirmacao(
     }
 
 
-    // Finaliza atendimento
+    // Finaliza atendimento e pausa o bot para não
+    // reabrir o menu em novas mensagens do cliente.
 
     clients.delete(jid);
+
+    await pauseChat(jid);
 
     return;
   }
