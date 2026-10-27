@@ -88,9 +88,9 @@ export async function createWhatsApp() {
 
       printQRInTerminal: false,
 
-      // Bot "online": o celular não recebe push de cada etapa do
-      // atendimento; o aviso chega pela notificação final do agendamento.
-      markOnlineOnConnect: true,
+      // A presença é controlada em bot.js: online durante o
+      // atendimento (sem push no celular), offline fora dele.
+      markOnlineOnConnect: false,
 
     });
 

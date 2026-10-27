@@ -66,6 +66,8 @@ export async function processMessage(
 
     clients.set(jid, client);
 
+    await updatePresence(sock);
+
     await sendMessage(
       sock,
       jid,
@@ -520,6 +522,8 @@ async function handleConfirmacao(
 
     await pauseChat(jid);
 
+    await updatePresence(sock);
+
     return;
   }
 
@@ -531,6 +535,8 @@ async function handleConfirmacao(
   if (text === "2") {
 
     clients.delete(jid);
+
+    await updatePresence(sock);
 
 
     await sendMessage(
@@ -555,6 +561,33 @@ async function handleConfirmacao(
 1 - CONFIRMAR AGENDAMENTO
 2 - VOLTAR AO MENU`
   );
+}
+
+
+// ==========================================
+// PRESENÇA
+// ==========================================
+
+// Com o bot "online" o celular não recebe push; "offline" libera
+// as notificações. Fica online só enquanto há atendimento em andamento.
+
+async function updatePresence(sock) {
+
+  try {
+
+    await sock.sendPresenceUpdate(
+      clients.size > 0
+        ? "available"
+        : "unavailable"
+    );
+
+  } catch (error) {
+
+    console.error(
+      "Erro ao atualizar presença:",
+      error
+    );
+  }
 }
 
 

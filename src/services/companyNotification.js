@@ -13,6 +13,14 @@ async function sendCompanyNotification(
   ].filter(Boolean);
 
 
+  if (phones.length === 0) {
+    console.error(
+      "Nenhum número EMPRESA_1/EMPRESA_2 configurado no .env"
+    );
+    return;
+  }
+
+
   const clientPhone =
     clientJid.replace(
       "@s.whatsapp.net",
