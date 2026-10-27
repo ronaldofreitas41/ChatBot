@@ -8,7 +8,7 @@ import { rm } from "node:fs/promises";
 import P from "pino";
 
 import { handleMessage } from "./messageHandler.js";
-import { pauseChat, PAUSE_1H } from "../bot/chatPauses.js";
+import { pauseChat, untilEndOfDay } from "../bot/chatPauses.js";
 
 // IDs das mensagens enviadas pelo próprio bot, para não
 // confundi-las com respostas manuais do atendente.
@@ -309,10 +309,10 @@ function setupMessages(sock) {
           return;
         }
 
-        await pauseChat(jid, PAUSE_1H);
+        await pauseChat(jid, untilEndOfDay());
 
         console.log(
-          `⏸️ Bot pausado por 1 hora em ${jid} (resposta manual).`
+          `⏸️ Bot pausado até o fim do dia em ${jid} (resposta manual).`
         );
 
         return;

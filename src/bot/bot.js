@@ -20,6 +20,7 @@ import {
 import {
   isChatPaused,
   pauseChat,
+  untilEndOfDay,
 } from "./chatPauses.js";
 
 
@@ -520,7 +521,7 @@ async function handleConfirmacao(
 
     clients.delete(jid);
 
-    await pauseChat(jid);
+    await pauseChat(jid, untilEndOfDay());
 
     await updatePresence(sock);
 

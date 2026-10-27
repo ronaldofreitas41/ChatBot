@@ -48,10 +48,22 @@ function savePauses() {
 export const PAUSE_24H = 24 * 60 * 60 * 1000;
 export const PAUSE_1H = 60 * 60 * 1000;
 
+// Pausa até a meia-noite: o bot volta no dia seguinte.
+export function untilEndOfDay() {
+  const midnight = new Date();
+  midnight.setHours(24, 0, 0, 0);
+
+  return midnight.getTime() - Date.now();
+}
+
 export async function pauseChat(jid, duration = PAUSE_24H) {
   await loadPauses();
 
-  const expiresAt = Date.now() + duration;
+  // Nunca encurta uma pausa já existente.
+  const expiresAt = Math.max(
+    Date.now() + duration,
+    pauses.get(jid) ?? 0
+  );
   pauses.set(jid, expiresAt);
   await savePauses();
 
